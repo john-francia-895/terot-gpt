@@ -1,0 +1,20 @@
+{
+  "question": "What is my future?",
+  "cards": [
+    { "name": "The Empress", "direction": "up" },
+    { "name": "The Hanged Man", "direction": "up" },
+    { "name": "Page of Wands", "direction": "rev" }
+  ]
+}
+
+
+curl -X POST http://127.0.0.1:5000/question \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is my future?",
+    "cards": [
+      { "name": "The Empress", "direction": "up" },
+      { "name": "The Hanged Man", "direction": "up" },
+      { "name": "Page of Wands", "direction": "rev" }
+    ]
+  }'
