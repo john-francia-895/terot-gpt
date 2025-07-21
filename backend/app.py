@@ -4,6 +4,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from flask_migrate import Migrate
 import os
 import requests
+import json
+import openai
 
 app = Flask(__name__)
 
@@ -25,8 +27,12 @@ class Draw(db.Model):
     username = db.Column(db.String(80), unique=False, nullable=False)
     question = db.Column(db.Text, nullable=False)
     cards = db.Column(JSONB, nullable=False)
+    answer_id = db.Column(db.Integer, nullable=True)
 
 
+class Answer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text)
 
 @app.route('/question', methods=['POST'])
 def question():
@@ -45,26 +51,70 @@ def question():
     db.session.add(draw)
     db.session.commit()
 
+    tarot_data = ''
+    with open("backend/resourses/card_data.json") as f:
+        tarot_data = json.load(f)
+
+    card_lookup = {card["name"]: card for card in tarot_data["cards"]}
+
+    card_contexts = []
+    for c in cards:
+        card_info = card_lookup[c["name"]]
+        meaning = card_info["meaning_up"] if c["direction"] == "up" else card_info["meaning_rev"]
+        card_contexts.append(f"- {card_info['name']} ({c['direction']}): {meaning}")
+    
+
+
+    system_prompt = (
+        "You are a wise and intuitive tarot reader who provides spiritual, thoughtful guidance based "
+        "on the cards drawn by the user."
+    )
+
+    user_prompt = f"""
+    A user asks: \"{question}\"
+
+    They drew the following 3 cards:
+    {chr(10).join(card_contexts)}
+
+    Please provide a thoughtful, spiritually-guided answer to their question, incorporating the meanings of the cards into your explanation.
+    """
+    print('user prompt: ' + user_prompt)
+
+
+
+
+
+
+
+    openai.api_key = "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"
+
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",  # or "gpt-3.5-turbo" if desired
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+    )
+
+    ai_response = response.choices[0].message.content.strip()
+
+    answer = Answer(content=ai_response)
+    db.session.add(answer)
+    db.session.commit()
+
+    draw = Draw.query.get(draw.id)
+    draw.answer_id = answer.id
+    db.session.commit()
+    
+
     return jsonify(
         id=draw.id,
         username=draw.username,
         question=draw.question,
-        cards=draw.cards
+        cards=draw.cards,
+        answer=answer.content 
     ), 201
 
-
-
-@app.route("/")
-def home():
-    response = requests.get("https://tarotapi.dev/api/v1")
-
-    if response.status_code != 200:
-        print(response)
-        return jsonify(error="Failed to fetch from external API"), 502
-
-    data = response.json()
-    return jsonify(data)
-    # return jsonify(message="Flask + Postgres + SQLAlchemy ready!")
 
 
 if __name__ == "__main__":
