@@ -86,7 +86,7 @@ def question():
 
 
 
-    openai.api_key = "api-token"
+    openai.api_key = "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"
 
     response = openai.chat.completions.create(
         model="gpt-3.5-turbo",  # or "gpt-3.5-turbo" if desired
